@@ -88,13 +88,19 @@ def handle_highscore():
         return json.dumps({"highscore": highscore})
 
 
-@app.route("/highscore/check", methods=["POST"]):
-@crossdimain(origin="*")
-    def check_if_in_top_10():
-        score = request.form["score"]
-        time = request.form["time"]
+@app.route("/highscore/check", methods=["POST"])
+@crossdomain(origin="*")
+def check_if_in_top_10():
+    score = request.form["score"]
+    time = request.form["time"]
+    db = get_db()
+    cur = db.execute("""select score, time from highscore order by
+            score desc, time asc limit 3""")
+    scores = cur.fetchall()
+    return str(scores)
 
-        return True
+
+    return True
 
 
 if __name__ == "__main__":
