@@ -56,51 +56,59 @@ def handle_highscore():
         return return_top_ten()
 
 
-    def return_top_ten():
-        db = get_db()
-        cur = db.execute("""select name, score, time from highscore order by
-                score desc, time asc limit 10""")
-        scores = cur.fetchall()
-        jsonscores = []
-        for row in scores:
-            jsonscores.append({"name": row["name"], "score": row["score"],
-                    "time": row["time"]})
+def return_top_ten():
+    db = get_db()
+    cur = db.execute("""select name, score, time from highscore order by
+            score desc, time asc limit 10""")
+    scores = cur.fetchall()
+    jsonscores = []
+    for row in scores:
+        jsonscores.append({"name": row["name"], "score": row["score"],
+                "time": row["time"]})
 
-        return json.dumps(jsonscores)
-    
-    def add_score(score, time):
-        try:
-            score = int(score)
-            time = float(time)
-        except ValueError:
-            return abort(400)
-        parts = [request.form["name"], request.form["score"], request.form["time"]]
-        db = get_db()
-        values = db.execute('''insert into highscore (name, score, time) values (?, ?, ?)''', parts)
-        db.commit()
-        newId = values.lastrowid
-        allScores = db.execute('''select id from highscore order by score
-                               desc limit 10''').fetchall()
-        highscore = False
-        for t in allScores:
-            if newId in t:
-                highscore = True
-        return json.dumps({"highscore": highscore})
+    return json.dumps(jsonscores)
+
+def add_score(score, time):
+    try:
+        score = int(score)
+        time = float(time)
+    except ValueError:
+        return abort(400)
+    parts = [request.form["name"], request.form["score"], request.form["time"]]
+    db = get_db()
+    values = db.execute('''insert into highscore (name, score, time) values (?, ?, ?)''', parts)
+    db.commit()
+    newId = values.lastrowid
+    allScores = db.execute('''select id from highscore order by score
+                           desc limit 10''').fetchall()
+    highscore = False
+    for t in allScores:
+        if newId in t:
+            highscore = True
+    return json.dumps({"highscore": highscore})
 
 
 @app.route("/highscore/check", methods=["POST"])
 @crossdomain(origin="*")
 def check_if_in_top_10():
-    score = request.form["score"]
-    time = request.form["time"]
+    # right now we are only checking for score 
+    # not for the time. This needs fixing
+    score = int(request.form["score"])
+    time = int(request.form["time"])
     db = get_db()
     cur = db.execute("""select score, time from highscore order by
-            score desc, time asc limit 3""")
+            score desc, time asc limit 10""")
     scores = cur.fetchall()
-    return str(scores)
+    highscore = 1000000000000000000
+    hightime = 0
+    for row in scores:
+        if row["score"] < highscore:
+            highscore = row["score"]
+            hightime = row['time']
 
+    return json.dumps({"top10": (score > highscore or (score == highscore and hightime > time))
+                       })
 
-    return True
 
 
 if __name__ == "__main__":
