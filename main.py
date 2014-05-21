@@ -99,6 +99,8 @@ def check_if_in_top_10():
     cur = db.execute("""select score, time from highscore order by
             score desc, time asc limit 10""")
     scores = cur.fetchall()
+    if len(scores) < 10:
+        return json.dumps({"top10" : True})
     highscore = 1000000000000000000
     hightime = 0
     for row in scores:
