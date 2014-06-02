@@ -5,6 +5,7 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash, jsonify 
 from cross import crossdomain
 import json
+import datetime
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -58,13 +59,16 @@ def handle_highscore():
 
 def return_top_ten():
     db = get_db()
-    cur = db.execute("""select name, score, time from highscore order by
+    cur = db.execute("""select name, score, time, datetime from highscore order by
             score desc, time asc limit 10""")
     scores = cur.fetchall()
     jsonscores = []
     for row in scores:
-        jsonscores.append({"name": row["name"], "score": row["score"],
-                "time": row["time"]})
+        jsonscores.append({"name": row["name"],
+                           "score": row["score"],
+                           "time": row["time"],
+                           "datetime": row["datetime"]
+                           })
 
     return json.dumps(jsonscores)
 
@@ -74,9 +78,9 @@ def add_score(score, time):
         time = float(time)
     except ValueError:
         return abort(400)
-    parts = [request.form["name"], request.form["score"], request.form["time"]]
+    parts = [request.form["name"], request.form["score"], request.form["time"], datetime.datetime.now()]
     db = get_db()
-    values = db.execute('''insert into highscore (name, score, time) values (?, ?, ?)''', parts)
+    values = db.execute('''insert into highscore (name, score, time, datetime) values (?, ?, ?, ?)''', parts)
     db.commit()
     newId = values.lastrowid
     allScores = db.execute('''select id from highscore order by score
