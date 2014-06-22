@@ -1,10 +1,13 @@
 # all the imports
-from flask import Flask, request, abort
+from flask import Flask, request, abort, jsonify
 from cross import crossdomain
 import os
 import json
 import datetime
+import calendar
+from datetime import date
 from entry import db, Entry
+
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -12,12 +15,13 @@ app.config.from_object(__name__)
 # load default config and override config from an environment variable
 app.config.update(dict(
     #debug=True
-    ))
+))
 
 
 @app.route("/highscore", methods=['get', 'post'])
 @crossdomain(origin='*')
 def handle_highscore():
+    print(get_all_months_with_entries())
     if request.method == "POST":
         score = request.form["score"]
         time = request.form["time"]
@@ -28,17 +32,29 @@ def handle_highscore():
 
 
 def return_top_ten():
-    scores = Entry.query.order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
+    allScores = {}
+    for monthrange in get_all_months_with_entries():
+        scores = Entry\
+            .query\
+            .filter(Entry.datetime < monthrange[1], Entry.datetime > monthrange[0])\
+            .order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
+        allScores[str(monthrange[0])] = createJsonScores(scores)
+
+    allTimeScores = Entry.query.order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
+    allScores['allTime'] = createJsonScores(allTimeScores)
+
+    return jsonify(allScores)
+
+
+def createJsonScores(entries):
     jsonscores = []
-    for entry in scores:
-        jsonscores.append({"name": entry.name,
-                           "score": entry.score,
-                           "time": entry.time,
-                           "datetime": str(entry.datetime)
-                           })
-
-    return json.dumps(jsonscores)
-
+    for entry in entries:
+        jsonscores.append( {"name": entry.name,
+                            "score": entry.score,
+                            "time": entry.time,
+                            "datetime": str(entry.datetime)
+                            })
+    return jsonscores
 
 def add_score(score, time):
     try:
@@ -52,13 +68,32 @@ def add_score(score, time):
     return json.dumps({"highscore": True})
 
 
+def get_all_months_with_entries():
+    values = Entry.query.all()
+    l = set([getFirstDayInMonth(e.datetime) for e in values])
+    l = [getMonthRange(m) for m in l]
+    return l
+
+
+def getMonthRange(d):
+    return [date(d.year, d.month, 1), getLastDayInMonth(d)]
+
+
+def getLastDayInMonth(d):
+    return date(d.year, d.month, calendar.monthrange(d.year, d.month)[1])
+
+
+def getFirstDayInMonth(d):
+    return date(d.year, d.month, 1)
+
+
 @app.route("/highscore/check", methods=["post"])
 @crossdomain(origin="*")
 def check_if_in_top_10():
     score = request.get['score']
     score = int(request.form["score"])
     time = int(request.form["time"])
-    scores = Entry.query().order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
+    scores = Entry.query.order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
     if len(scores) < 10:
         return json.dumps({"top10": True})
     highscore = 1000000000000000000
