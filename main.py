@@ -1,9 +1,6 @@
 # all the imports
 from flask import Flask, request, abort, jsonify
 from cross import crossdomain
-import os
-import json
-import datetime
 import calendar
 from datetime import date
 from entry import db, Entry
@@ -21,7 +18,6 @@ app.config.update(dict(
 @app.route("/highscore", methods=['get', 'post'])
 @crossdomain(origin='*')
 def handle_highscore():
-    print(get_all_months_with_entries())
     if request.method == "POST":
         score = request.form["score"]
         time = request.form["time"]
@@ -49,12 +45,13 @@ def return_top_ten():
 def createJsonScores(entries):
     jsonscores = []
     for entry in entries:
-        jsonscores.append( {"name": entry.name,
-                            "score": entry.score,
-                            "time": entry.time,
-                            "datetime": str(entry.datetime)
-                            })
+        jsonscores.append({"name": entry.name,
+                           "score": entry.score,
+                           "time": entry.time,
+                           "datetime": str(entry.datetime)
+                           })
     return jsonscores
+
 
 def add_score(score, time):
     try:
@@ -65,7 +62,7 @@ def add_score(score, time):
     entry = Entry(request.form['name'], request.form['score'], request.form['time'])
     db.session.add(entry)
     db.session.commit()
-    return json.dumps({"highscore": True})
+    return jsonify({'success': True})
 
 
 def get_all_months_with_entries():
@@ -90,12 +87,15 @@ def getFirstDayInMonth(d):
 @app.route("/highscore/check", methods=["post"])
 @crossdomain(origin="*")
 def check_if_in_top_10():
-    score = request.get['score']
     score = int(request.form["score"])
     time = int(request.form["time"])
-    scores = Entry.query.order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
-    if len(scores) < 10:
-        return json.dumps({"top10": True})
+    today = date.today()
+    scores = Entry\
+        .query\
+        .filter(Entry.datetime < getLastDayInMonth(today), Entry.datetime > getFirstDayInMonth(today))\
+        .order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
+    if scores.count() < 10:
+        return jsonify({"top10": True})
     highscore = 1000000000000000000
     hightime = 0
     for entry in scores:
@@ -103,8 +103,8 @@ def check_if_in_top_10():
             highscore = entry.score
             hightime = entry.time
 
-    return json.dumps({"top10": (score > highscore or (score == highscore and hightime > time))
-                       })
+    return jsonify({"top10": (score > highscore or (score == highscore and hightime > time))
+                    })
 
 
 if __name__ == "__main__":

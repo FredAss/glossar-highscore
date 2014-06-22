@@ -20,10 +20,5 @@ class Entry(db.Model):
         self.score = score
         self.datetime = datetime.now()
 
-    def setDate(self, date):
-        self.datetime = date
-
     def __repr__(self):
         return '<Entry %r>' % self.name
-
-
