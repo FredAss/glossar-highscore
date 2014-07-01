@@ -2,7 +2,7 @@
 from flask import Flask, request, abort, jsonify
 from cross import crossdomain
 import calendar
-from datetime import date
+from datetime import date, datetime
 from entry import db, Entry
 
 
@@ -29,10 +29,11 @@ def handle_highscore():
 
 def return_top_ten():
     allScores = {}
+
     for monthrange in get_all_months_with_entries():
         scores = Entry\
             .query\
-            .filter(Entry.datetime < monthrange[1], Entry.datetime > monthrange[0])\
+            .filter(Entry.datetime <= monthrange[1], Entry.datetime >= monthrange[0])\
             .order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
         allScores[str(monthrange[0])] = createJsonScores(scores)
 
@@ -77,7 +78,7 @@ def getMonthRange(d):
 
 
 def getLastDayInMonth(d):
-    return date(d.year, d.month, calendar.monthrange(d.year, d.month)[1])
+    return datetime(d.year, d.month, calendar.monthrange(d.year, d.month)[1], 23, 59, 59)
 
 
 def getFirstDayInMonth(d):
@@ -92,7 +93,7 @@ def check_if_in_top_10():
     today = date.today()
     scores = Entry\
         .query\
-        .filter(Entry.datetime < getLastDayInMonth(today), Entry.datetime > getFirstDayInMonth(today))\
+        .filter(Entry.datetime <= getLastDayInMonth(today), Entry.datetime >= getFirstDayInMonth(today))\
         .order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
     if scores.count() < 10:
         return jsonify({"top10": True})
