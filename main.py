@@ -49,7 +49,7 @@ def createJsonScores(entries):
         jsonscores.append({"name": entry.name,
                            "score": entry.score,
                            "time": entry.time,
-                           "datetime": str(entry.datetime)
+                           "datetime": entry.datetime.isoformat()
                            })
     return jsonscores
 
@@ -85,11 +85,12 @@ def getFirstDayInMonth(d):
     return date(d.year, d.month, 1)
 
 
-@app.route("/highscore/check", methods=["post"])
-@crossdomain(origin="*")
+@app.route("/highscore/check", methods=["post", "OPTIONS"])
+@crossdomain(origin="*", headers="Content-Type")
 def check_if_in_top_10():
-    score = int(request.form["score"])
-    time = int(request.form["time"])
+    content = request.get_json()
+    score = int(content["score"])
+    time = int(content["time"])
     today = date.today()
     scores = Entry\
         .query\
