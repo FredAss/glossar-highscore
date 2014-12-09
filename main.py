@@ -6,6 +6,7 @@ from datetime import date, datetime
 from entry import db, Entry
 
 
+
 app = Flask(__name__)
 app.config.from_object(__name__)
 
@@ -28,19 +29,23 @@ def handle_highscore():
 
 
 def return_top_ten():
-    allScores = {}
+    all_scores = {}
 
-    for monthrange in get_all_months_with_entries():
+    sorted_months = sorted(get_all_months_with_entries(), key=lambda date_range: date_range[0])
+
+    total_months = len(sorted_months)
+    for i, monthrange in enumerate(sorted_months):
+        limit = 10 if (i== total_months -1 ) else 3
         scores = Entry\
             .query\
             .filter(Entry.datetime <= monthrange[1], Entry.datetime >= monthrange[0])\
-            .order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
-        allScores[str(monthrange[0])] = createJsonScores(scores)
+            .order_by(Entry.score.desc(), Entry.time.asc()).limit(limit)
+        all_scores[str(monthrange[0])] = createJsonScores(scores)
 
     allTimeScores = Entry.query.order_by(Entry.score.desc(), Entry.time.asc()).limit(10)
-    allScores['allTime'] = createJsonScores(allTimeScores)
+    all_scores['allTime'] = createJsonScores(allTimeScores)
 
-    return jsonify(allScores)
+    return jsonify(all_scores)
 
 
 def createJsonScores(entries):
@@ -49,7 +54,7 @@ def createJsonScores(entries):
         jsonscores.append({"name": entry.name,
                            "score": entry.score,
                            "time": entry.time,
-                           "datetime": entry.datetime.isoformat()
+                           "datetime": str(entry.datetime)
                            })
     return jsonscores
 
@@ -85,12 +90,11 @@ def getFirstDayInMonth(d):
     return date(d.year, d.month, 1)
 
 
-@app.route("/highscore/check", methods=["post", "OPTIONS"])
-@crossdomain(origin="*", headers="Content-Type")
+@app.route("/highscore/check", methods=["post"])
+@crossdomain(origin="*")
 def check_if_in_top_10():
-    content = request.get_json()
-    score = int(content["score"])
-    time = int(content["time"])
+    score = int(request.form["score"])
+    time = int(request.form["time"])
     today = date.today()
     scores = Entry\
         .query\
