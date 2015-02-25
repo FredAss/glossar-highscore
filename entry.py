@@ -22,3 +22,10 @@ class Entry(db.Model):
 
     def __repr__(self):
         return '<Entry %r>' % self.name
+
+    def to_json(self):
+        return {"name": self.name,
+                "score": self.score,
+                "time": self.time,
+                "datetime": self.datetime.isoformat()
+                }
